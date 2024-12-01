@@ -1,0 +1,9 @@
+azure-functions
+azure-storage-blob
+langchain
+PyPDF2
+python-docx
+langchain-community
+langchain-text-splitters
+docx2txt
+openai

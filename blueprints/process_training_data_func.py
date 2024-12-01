@@ -64,7 +64,7 @@ def extract_metadata(text: str) -> DocumentMetadata:
             f"Texto: {text}\n"
             'Responda no formato JSON: {"tags": ["..."], "category": "...", "subcategory": "..."}'
         )
-        response_text  = openai_client.create_completion(prompt=prompt, max_tokens=300, temperature=0.6)
+        response_text  = openai_client.create_completion_json(prompt=prompt, max_tokens=300, temperature=0.6)
         if not response_text:
             return DocumentMetadata(text=text, category="Outros", subcategory="Outros", tags=[])
         

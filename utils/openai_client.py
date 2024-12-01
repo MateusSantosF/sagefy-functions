@@ -15,6 +15,20 @@ class AzureOpenAIClient:
                 messages=[{"content": prompt, "role": "system"}],
                 max_tokens=max_tokens,
                 temperature=temperature,
+                
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logging.error(f"Erro ao criar completion: {str(e)}")
+            raise
+
+    def create_completion_json(self, prompt: str, max_tokens: int = 100, temperature: float = 0.0):
+        try:
+            response = self.client.chat.completions.create(
+                model=self.completion_model,
+                messages=[{"content": prompt, "role": "system"}],
+                max_tokens=max_tokens,
+                temperature=temperature,
                 response_format={"type": "json_object"}
                 
             )

@@ -32,7 +32,7 @@ def process_raw_training_data(blob: func.InputStream):
         content = extract_content(blob_bytes, file_extension)
 
         # Processar cada chunk com embeddings e Pinecone
-        for chunk in content.items[0:2]:
+        for chunk in content.items:
             text = chunk.content
 
             # Gerar embeddings

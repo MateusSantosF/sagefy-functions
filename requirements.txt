@@ -7,3 +7,6 @@ langchain-community
 langchain-text-splitters
 docx2txt
 openai
+azure-data-tables
+pyjwt
+bcrypt

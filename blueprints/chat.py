@@ -1,26 +1,25 @@
 import azure.functions as func
 from azure.functions import HttpRequest
-from configs.settings import openai_client, pinecone_client
+from configs.settings import openai_client, pinecone_client, pinecone_index_name
 from typing import TypedDict, List, Optional
 from uuid import uuid4
 import json
 
 chat_bp = func.Blueprint()
 
-# Define o modelo de resposta usando TypedDict
 class ResponseModel(TypedDict):
     request_id: str
     response: Optional[str]
     error: Optional[str]
     status: str
 
-# Define o prompt padrão
 DEFAULT_PROMPT = (
     "Você é um assistente virtual especializado em responder perguntas sobre a disciplina de Multimeios Didáticos. "
     "Você pode fornecer informações sobre atualizações, notas, provas, lembretes e informações configuradas pelo professor.\n\n"
     "### Instruções:\n"
     "- Responda APENAS com base no contexto fornecido.\n"
     "- Responda apenas perguntas em português.\n"
+    "- Não conte piadas.\n"
     "- NÃO forneça informações sobre assuntos fora da disciplina.\n\n"
 )
 
@@ -71,7 +70,7 @@ def main(req: HttpRequest) -> func.HttpResponse:
         hypothetical_document_embedding = openai_client.create_embedding(input_text=hypothetical_document)
 
         # Realiza a busca no Pinecone
-        result = pinecone_client.vector_search(index_name="sagefy", vector=hypothetical_document_embedding)
+        result = pinecone_client.vector_search(index_name=pinecone_index_name, vector=hypothetical_document_embedding)
         matches = result.get("matches", [])  # type: ignore
 
         # Extrai apenas os textos dos metadados
@@ -86,8 +85,8 @@ def main(req: HttpRequest) -> func.HttpResponse:
         # Chama a IA com o novo prompt
         assistant_response = openai_client.create_completion(
             prompt=assistant_prompt,
-            max_tokens=2000,
-            temperature=0.6,
+            max_tokens=5000,
+            temperature=0.3,
         )
 
         # Formata a resposta final

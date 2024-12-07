@@ -39,10 +39,12 @@ As principais bibliotecas utilizadas no projeto estão listadas abaixo e são in
 
 - `azure-functions`: SDK para criar Azure Functions.
 - `azure-storage-blob`: Interação com Azure Blob Storage.
-- `langchain`: Para extração de texto de documentos.
-- `hashlib`: Biblioteca padrão para hashing.
-- `re`: Para manipulação de strings e normalização.
+- `azure-data-tables`: Cliente Python para interação com o Azure Data Tables.
+- `pinecone-client`: Cliente Python para interação com a API do Pinecone.	
 - `openai`: Cliente Python para interação com a API do OpenAI.
+- `langchain`: Para extração de texto de documentos.
+- `bcrypt`: Biblioteca padrão para hashing.
+- `pyjwt`: Para geração de tokens JWT.
 
 ## 🚀 Funcionalidades
 

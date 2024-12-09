@@ -6,5 +6,5 @@ class ResponseModel(func.HttpResponse):
         super().__init__(
             body=json.dumps(data),
             status_code=status_code,
-            mimetype="application/json"
+            mimetype="application/json",
         )

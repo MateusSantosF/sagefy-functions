@@ -5,7 +5,7 @@ import os
 from models.Class import Class
 from models.ResponseModel import ResponseModel
 from models.Roles import Role
-from utils.token_utils import create_jwt, validate_user_access
+from utils.token_utils import create_jwt, validate_user_access, verify_jwt
 from utils.check_password_hash import check_password_hash
 from utils.generate_password_hash import generate_password_hash
 from azure.data.tables import UpdateMode
@@ -13,12 +13,13 @@ from azure.data.tables import UpdateMode
 from configs.settings import classes_client, users_client
 from models.User import User 
 
-JWT_EXP_DELTA_SECONDS = 3600 * 7  # 7 horas
 
 auth_bp = func.Blueprint()
 
 ADMIN_EMAIL = os.environ["ADMIN_EMAIL"]
 ADMIN_PASSWORD_HASH = os.environ["ADMIN_PASSWORD_HASH"]
+JWT_EXP_DELTA_SECONDS = 3600 # 1 horas
+REFRESH_TOKEN_EXP_DELTA_SECONDS = 3600 * 24 * 30  # 30 dias
 
 @auth_bp.function_name(name="authenticate_student")
 @auth_bp.route(route="authenticate/students", methods=["POST"])
@@ -51,11 +52,12 @@ def authenticate_student(req: func.HttpRequest) -> func.HttpResponse:
             "email": email,
             "classCode": turma.get("classCode"),
             "role": "STUDENT",
-            "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds=JWT_EXP_DELTA_SECONDS)
         }
-        token = create_jwt(payload)
+    
+        token = create_jwt(payload, expires_delta_seconds=JWT_EXP_DELTA_SECONDS, type="access")
+        refresh_token = create_jwt(payload, REFRESH_TOKEN_EXP_DELTA_SECONDS, "refresh")
 
-        return ResponseModel({"token": token}, status_code=200)
+        return ResponseModel({"accessToken": token, "refreshToken":refresh_token}, status_code=200)
 
     except Exception as e:
         return ResponseModel({"error": str(e)}, status_code=500)
@@ -85,10 +87,11 @@ def authenticate_admin_professor(req: func.HttpRequest) -> func.HttpResponse:
             payload = {
                 "email": email,
                 "role": role,
-                "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds=JWT_EXP_DELTA_SECONDS)
             }
             token = create_jwt(payload)
-            return ResponseModel({"token": token}, status_code=200)
+            refresh_token = create_jwt(payload, REFRESH_TOKEN_EXP_DELTA_SECONDS, "refresh")
+
+            return ResponseModel({"accessToken": token, "refreshToken": refresh_token}, status_code=200)
 
         else:
             # Tenta obter como PROFESSOR
@@ -107,10 +110,11 @@ def authenticate_admin_professor(req: func.HttpRequest) -> func.HttpResponse:
             payload = {
                 "email": email,
                 "role": role,
-                "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds=JWT_EXP_DELTA_SECONDS)
             }
             token = create_jwt(payload)
-            return ResponseModel({"token": token}, status_code=200)
+            refresh_token = create_jwt(payload, REFRESH_TOKEN_EXP_DELTA_SECONDS, "refresh")
+
+            return ResponseModel({"accessToken": token, "refreshToken":refresh_token }, status_code=200)
 
     except Exception as e:
         return ResponseModel({"error": str(e)}, status_code=500)
@@ -213,6 +217,46 @@ def register_professor(req: func.HttpRequest) -> func.HttpResponse:
             return ResponseModel({"error": f"Erro ao registrar o professor: {str(e)}"}, status_code=500)
 
         return ResponseModel({"message": "Professor registrado com sucesso."}, status_code=201)
+
+    except Exception as e:
+        return ResponseModel({"error": str(e)}, status_code=500)
+    
+@auth_bp.function_name(name="refresh_token")
+@auth_bp.route(route="refresh-token", methods=["POST"])
+def refresh_access_token(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Endpoint para atualizar o access token usando um refresh token válido.
+    """
+    try:
+        data = req.get_json()
+        refresh_token = data.get("refreshToken")
+
+        if not refresh_token:
+            return ResponseModel({"error": "Refresh token é obrigatório."}, status_code=400)
+
+        # Decodifica e valida o refresh token
+        decoded_refresh = verify_jwt(refresh_token, expected_type="refresh")
+        if not decoded_refresh:
+            return ResponseModel({"error": "Refresh token inválido ou expirado."}, status_code=401)
+
+        email = decoded_refresh.get("email")
+        role = decoded_refresh.get("role")
+
+        if not email or not role:
+            return ResponseModel({"error": "Token inválido."}, status_code=401)
+
+        # Gera um novo access token
+        payload = {
+            "email": email,
+            "role": role
+        }
+        new_access_token = create_jwt(payload, JWT_EXP_DELTA_SECONDS, "access")
+        new_refresh_token = create_jwt(payload, REFRESH_TOKEN_EXP_DELTA_SECONDS, "refresh")
+
+        return ResponseModel({
+            "accessToken": new_access_token,
+            "refreshToken": new_refresh_token
+        }, status_code=200)
 
     except Exception as e:
         return ResponseModel({"error": str(e)}, status_code=500)

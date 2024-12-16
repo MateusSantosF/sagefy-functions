@@ -12,4 +12,6 @@ class MetricsEntry(TypedDict):
     completion_tokens: Optional[int]
     prompt_tokens: Optional[int]
     total_tokens: Optional[int]
+    categories: Optional[str]
+    subcategories: Optional[str]
     timestamp: Optional[str]  # Formato ISO

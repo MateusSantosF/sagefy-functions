@@ -6,6 +6,7 @@ from azure.data.tables import TableServiceClient
 USERS_TABLE = "users"
 CLASSES_TABLE = "classes"
 METRICS_TABLE = "metrics"
+DASHBOARD_TABLE = "dashboard"
 pinecone_index_name = "sagefy"
 
 # Inicializar clientes
@@ -15,3 +16,4 @@ azure_tables_client = TableServiceClient.from_connection_string(conn_str=os.envi
 users_client = azure_tables_client.get_table_client(USERS_TABLE)
 classes_client = azure_tables_client.get_table_client(CLASSES_TABLE)
 metrics_client = azure_tables_client.get_table_client(METRICS_TABLE)
+dashboard_client = azure_tables_client.get_table_client(DASHBOARD_TABLE)

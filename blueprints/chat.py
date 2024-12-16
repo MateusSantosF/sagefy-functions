@@ -2,6 +2,7 @@ import azure.functions as func
 from azure.functions import HttpRequest
 from configs.settings import openai_client, pinecone_client, pinecone_index_name
 from uuid import uuid4
+from models.DocumentMetadata import DocumentMetadata
 from models.ResponseModel import ResponseModel
 
 from models.Roles import Role
@@ -58,7 +59,8 @@ def main(req: HttpRequest) -> func.HttpResponse:
         matches = result.get("matches", [])  # type: ignore
 
         # Extrai apenas os textos dos metadados
-        matched_texts = [match.get("metadata", {}).get("text", "") for match in matches if "metadata" in match]
+        matches_metadata: list[DocumentMetadata] = [DocumentMetadata(**match["metadata"]) for match in matches if "metadata" in match]
+        matched_texts = [match.text for match in matches_metadata]
 
         # Cria um novo prompt para a IA com os textos extraídos
         assistant_prompt = (
@@ -78,6 +80,7 @@ def main(req: HttpRequest) -> func.HttpResponse:
             user=user,
             prompt=user_prompt,
             response=raw_response,
+            metadata=matches_metadata,
         )
 
         # Formata a resposta final

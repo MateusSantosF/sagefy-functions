@@ -14,7 +14,7 @@ class PineconeClient:
             logging.error(f"Erro ao upsertar vector {vector_id}: {str(e)}")
             raise
 
-    def vector_search(self, index_name: str, vector: List[float], max_results = 9):
+    def vector_search(self, index_name: str, vector: List[float], max_results = 6):
         try:
             matched_results = self.client.Index(index_name).query(
                 top_k=max_results, 

@@ -1,5 +1,7 @@
 import datetime
+from typing import List
 from uuid import uuid4
+from models.DocumentMetadata import DocumentMetadata
 from models.MetricsEntry import MetricsEntry
 from configs.settings import metrics_client
 from models.User import User
@@ -9,6 +11,7 @@ def log_usage_metrics(
     user: User,
     prompt: str,
     response: ChatCompletion,
+    metadata: List[DocumentMetadata]
 ) -> None:
     """
     Registra métricas de uso na tabela de métricas do Azure.
@@ -42,6 +45,9 @@ def log_usage_metrics(
     # Capturar o timestamp atual em formato ISO
     timestamp = datetime.datetime.utcnow().isoformat()
 
+    categories = ", ".join([doc.category for doc in metadata if doc.category])
+    subcategories = ", ".join([doc.subcategory for doc in metadata if doc.subcategory])
+
     # Criar a entrada de métricas
     metrics_entry: MetricsEntry = {
         "PartitionKey": partition_key,
@@ -49,6 +55,8 @@ def log_usage_metrics(
         "request_id": request_id,
         "user_email": user_email,
         "user_role": user_role,
+        "categories": categories,
+        "subcategories":subcategories,
         "class_code": class_code,
         "prompt": prompt,
         "response": response.choices[0].message.content,

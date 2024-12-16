@@ -56,6 +56,58 @@ def register_emails(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         return ResponseModel({"error": str(e)}, status_code=500)
 
+@turmas_bp.function_name(name="remove_student")
+@turmas_bp.route(route="classes/students/remove", methods=["POST"])
+def remove_student(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Endpoint para remover um estudante de uma turma específica.
+    Somente PROFESSORES e ADMIN podem acessar.
+    """
+    try:
+        # Autenticação do usuário
+        user = validate_user_access(req, allowed_roles=[Role.TEACHER, Role.ADMIN])
+        if isinstance(user, ResponseModel):  # Se retornou um erro, repassa a resposta
+            return user
+
+        # Obter dados da requisição
+        data = req.get_json()
+        email_to_remove = data.get("email")
+        class_code = data.get("classCode")
+
+        if not email_to_remove or not class_code:
+            return ResponseModel({"error": "Email e classCode são obrigatórios."}, status_code=400)
+
+        # Recupera a entidade da turma usando PartitionKey e RowKey
+        try:
+            turma_entity = classes_client.get_entity(partition_key=class_code, row_key=class_code)
+            turma = Class(**turma_entity)
+        except:
+            return ResponseModel({"error": "Turma não encontrada."}, status_code=404)
+
+        # Verifica se o usuário é o professor da turma ou um ADMIN
+        if user.get("role") == Role.TEACHER.value and turma.get("professorID") != user.get("email"):
+            return ResponseModel({"error": "Você não é o professor desta turma."}, status_code=403)
+
+        # Atualiza a lista de alunos
+        try:
+            existing_students = json.loads(turma.get("students", "[]"))
+            if email_to_remove not in existing_students:
+                return ResponseModel({"error": "O email fornecido não está na lista de estudantes desta turma."}, status_code=404)
+
+            updated_students = [email for email in existing_students if email != email_to_remove]
+            turma["students"] = json.dumps(updated_students)
+            turma["studentCount"] = len(updated_students)
+
+            # Atualiza a turma na tabela
+            classes_client.update_entity(entity=turma, mode=UpdateMode.MERGE)
+
+            return ResponseModel({"message": "Estudante removido com sucesso.", "remaining_students": updated_students}, status_code=200)
+        except Exception as e:
+            return ResponseModel({"error": f"Erro ao processar a lista de estudantes: {str(e)}"}, status_code=500)
+
+    except Exception as e:
+        return ResponseModel({"error": str(e)}, status_code=500)
+    
 @turmas_bp.function_name(name="create_class")
 @turmas_bp.route(route="classes", methods=["POST"])
 def create_class(req: func.HttpRequest) -> func.HttpResponse:

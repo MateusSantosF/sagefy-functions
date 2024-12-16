@@ -35,29 +35,39 @@ def authenticate_student(req: func.HttpRequest) -> func.HttpResponse:
         if not email or not access_code:
             return ResponseModel({"error": "Email e accessCode são obrigatórios."}, status_code=400)
 
-        # Recupera a turma
+        # Recupera todas as turmas correspondentes ao código de acesso
         try:
-            turma = classes_client.get_entity(partition_key=access_code, row_key=access_code)
-            turma = Class(**turma)
-        except:
-            return ResponseModel({"error": "Turma não encontrada."}, status_code=404)
+            filter_query = f"accessCode eq '{access_code}'"
+            target_classes = list(classes_client.query_entities(query_filter=filter_query))
+            
+            if not target_classes:
+                return ResponseModel({"error": "Nenhuma turma encontrada com este código de acesso."}, status_code=404)
+        except Exception as e:
+            return ResponseModel({"error": f"Erro ao buscar turmas: {str(e)}"}, status_code=500)
 
-        # Verifica se o email está na lista de alunos autorizados
-        parsed_students_list = json.loads(turma.get("students", "[]"))
-        if email not in parsed_students_list:
-            return ResponseModel({"error": "Email não autorizado para esta turma."}, status_code=403)
+        # Itera pelas turmas para verificar o email do estudante
+        matched_turma = None
+        for turma_data in target_classes:
+            turma = Class(**turma_data)
+            parsed_students_list = json.loads(turma.get("students", "[]"))
+            if email in parsed_students_list:
+                matched_turma = turma
+                break
+
+        if not matched_turma:
+            return ResponseModel({"error": "Email não autorizado para nenhuma turma com este código de acesso."}, status_code=403)
 
         # Gera o token JWT
         payload = {
             "email": email,
-            "classCode": turma.get("classCode"),
+            "classCode": matched_turma.get("classCode"),
             "role": "STUDENT",
         }
-    
-        token = create_jwt(payload, expires_delta_seconds=JWT_EXP_DELTA_SECONDS, type="access")
-        refresh_token = create_jwt(payload, REFRESH_TOKEN_EXP_DELTA_SECONDS, "refresh")
 
-        return ResponseModel({"accessToken": token, "refreshToken":refresh_token}, status_code=200)
+        token = create_jwt(payload, expires_delta_seconds=JWT_EXP_DELTA_SECONDS, type="access")
+        refresh_token = create_jwt(payload, REFRESH_TOKEN_EXP_DELTA_SECONDS, type="refresh")
+
+        return ResponseModel({"accessToken": token, "refreshToken": refresh_token}, status_code=200)
 
     except Exception as e:
         return ResponseModel({"error": str(e)}, status_code=500)

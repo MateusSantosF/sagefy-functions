@@ -15,7 +15,7 @@ class AzureOpenAIClient:
                 messages=[{"content": prompt, "role": "system"}],
                 max_tokens=max_tokens,
                 temperature=temperature,
-                
+         
             )
             return (response.choices[0].message.content, response)
         except Exception as e:

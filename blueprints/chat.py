@@ -4,7 +4,6 @@ from configs.settings import openai_client, pinecone_client, pinecone_index_name
 from uuid import uuid4
 from models.DocumentMetadata import DocumentMetadata
 from models.ResponseModel import ResponseModel
-
 from models.Roles import Role
 from utils.log_usage_metrics import log_usage_metrics
 from utils.token_utils import validate_user_access

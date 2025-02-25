@@ -12,3 +12,4 @@ class DashboardEntry(TypedDict):
     top_categories: Optional[str]
     top_subcategories: Optional[str]
     timestamp: Optional[str]  # Formato ISO
+    top_students: Optional[str] # JSON com os top 10 alunos

@@ -1,0 +1,5 @@
+pytest
+ragchecker
+pytest-asyncio
+pandas
+openpyxl

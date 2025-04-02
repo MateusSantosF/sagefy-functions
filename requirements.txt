@@ -11,4 +11,4 @@ azure-data-tables
 pyjwt
 bcrypt
 pytest
-ragcheck
+pinecone

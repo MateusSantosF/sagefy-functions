@@ -61,7 +61,7 @@ As principais bibliotecas utilizadas no projeto estão listadas abaixo e são in
 ### Principais Variáveis Utilizadas
 
 - **`FUNCTIONS_WORKER_RUNTIME`**: Define o runtime (Python).
-- **`AzureWebJobsStorage`**: String de conexão para o Azure Blob Storage.
+- **`AZURE_STORAGE_CONNECTION_STRING`**: String de conexão para o Azure Blob Storage.
 - **`PINECONE_API_KEY`**: Chave de autenticação para o Pinecone.
 - **`PINECONE_INDEX_NAME`**: Nome do índice do Pinecone.
 - **`AZURE_OPENAI_API_KEY`**: Chave da API do Azure OpenAI.

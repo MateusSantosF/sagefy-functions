@@ -123,6 +123,7 @@ def create_class(req: func.HttpRequest) -> func.HttpResponse:
         data = req.get_json()
         class_code = data.get("classCode")
         access_code = data.get("accessCode")
+        class_name = data.get("className")
         students = data.get("students", [])
         professor_email = user.get("email")
 
@@ -140,6 +141,7 @@ def create_class(req: func.HttpRequest) -> func.HttpResponse:
         turma = {
             "PartitionKey": class_code,
             "RowKey": class_code,
+            "className": class_name,
             "classCode": class_code,
             "accessCode": access_code,
             "professorID": professor_email,
@@ -168,6 +170,7 @@ def update_class(req: func.HttpRequest) -> func.HttpResponse:
         data = req.get_json()
         class_code = data.get("classCode")
         new_access_code = data.get("acessCode")  # Opcional
+        new_class_name = data.get("className")  # Opcional
 
         if not class_code:
             return ResponseModel({"error": "classCode é obrigatório."}, status_code=400)
@@ -186,6 +189,9 @@ def update_class(req: func.HttpRequest) -> func.HttpResponse:
         # Atualiza o accessCode se fornecido
         if new_access_code:
             turma["accessCode"] = new_access_code
+        
+        if new_class_name:
+            turma["className"] = new_class_name
 
         classes_client.update_entity(entity=turma, mode=UpdateMode.MERGE)
 
@@ -283,7 +289,7 @@ def list_classes(req: func.HttpRequest) -> func.HttpResponse:
         classes = []
         try:
             if filter_query:
-                entities = classes_client.query_entities(query_filter=filter_query, select=["RowKey", "PartitionKey", "accessCode", "classCode", "studentCount"])
+                entities = classes_client.query_entities(query_filter=filter_query, select=["RowKey", "PartitionKey", "accessCode", "classCode", "studentCount", "className"])
             else:
                 # ADMIN solicitando todas as turmas
                 entities = classes_client.list_entities()

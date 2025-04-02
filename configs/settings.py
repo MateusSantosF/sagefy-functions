@@ -14,7 +14,7 @@ pinecone_client = PineconeClient(api_key=os.environ["PINECONE_API_KEY"], index_n
 openai_client = AzureOpenAIClient(model=os.environ["AZURE_OPENAI_MODEL"], embedding_model=os.environ["OPENAI_EMBEDDING_MODEL"])
 openai_client_4o = AzureOpenAIClient(model="gpt-4o", embedding_model=os.environ["OPENAI_EMBEDDING_MODEL"])
 
-azure_tables_client = TableServiceClient.from_connection_string(conn_str=os.environ["AZURE_TABLES_CONNECTION_STRING"])
+azure_tables_client = TableServiceClient.from_connection_string(conn_str=os.environ["AZURE_STORAGE_CONNECTION_STRING"])
 users_client = azure_tables_client.get_table_client(USERS_TABLE)
 classes_client = azure_tables_client.get_table_client(CLASSES_TABLE)
 metrics_client = azure_tables_client.get_table_client(METRICS_TABLE)

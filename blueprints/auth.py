@@ -97,6 +97,7 @@ def authenticate_admin_professor(req: func.HttpRequest) -> func.HttpResponse:
             payload = {
                 "email": email,
                 "role": role,
+                "name": "Admin",
             }
             token = create_jwt(payload)
             refresh_token = create_jwt(payload, REFRESH_TOKEN_EXP_DELTA_SECONDS, "refresh")
@@ -120,6 +121,7 @@ def authenticate_admin_professor(req: func.HttpRequest) -> func.HttpResponse:
             payload = {
                 "email": email,
                 "role": role,
+                "name": user.get("name"),
             }
             token = create_jwt(payload)
             refresh_token = create_jwt(payload, REFRESH_TOKEN_EXP_DELTA_SECONDS, "refresh")
@@ -198,6 +200,7 @@ def register_professor(req: func.HttpRequest) -> func.HttpResponse:
         data = req.get_json()
         email = data.get("email")
         password = data.get("password")
+        name = data.get("name")
 
         if not email or not password:
             return ResponseModel({"error": "Email e senha são obrigatórios."}, status_code=400)
@@ -217,6 +220,7 @@ def register_professor(req: func.HttpRequest) -> func.HttpResponse:
             "PartitionKey":Role.TEACHER.value,
             "RowKey":email,
             "email":email,
+            "name": name,
             "password": password_hash,
         }
 
@@ -251,6 +255,7 @@ def refresh_access_token(req: func.HttpRequest) -> func.HttpResponse:
 
         email = decoded_refresh.get("email")
         role = decoded_refresh.get("role")
+        name = decoded_refresh.get("name")
 
         if not email or not role:
             return ResponseModel({"error": "Token inválido."}, status_code=401)
@@ -258,7 +263,8 @@ def refresh_access_token(req: func.HttpRequest) -> func.HttpResponse:
         # Gera um novo access token
         payload = {
             "email": email,
-            "role": role
+            "role": role,
+            "name": name,
         }
         new_access_token = create_jwt(payload, JWT_EXP_DELTA_SECONDS, "access")
         new_refresh_token = create_jwt(payload, REFRESH_TOKEN_EXP_DELTA_SECONDS, "refresh")

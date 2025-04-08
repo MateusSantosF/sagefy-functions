@@ -27,3 +27,13 @@ class PineconeClient:
         except Exception as e:
             logging.error(f"Erro ao realizar busca vetorial: {str(e)}")
             raise
+    
+    def delete_vectors_by_filter(self, filter: dict):
+        """
+        Exclui todos os vetores que satisfaçam o filtro.
+        """
+        try:
+            self.index.delete(filter=filter)
+        except Exception as e:
+            logging.error(f"Erro ao deletar vetores com filtro {filter}: {str(e)}")
+            raise

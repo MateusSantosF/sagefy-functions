@@ -11,7 +11,7 @@ bp = func.Blueprint()
 @bp.function_name(name="process-training-data")
 @bp.blob_trigger(
     arg_name="blob",
-    path="raw-training-data/{name}",
+    path="training-data-prod/{name}",
     connection="AzureWebJobsStorage"
 )
 def process_raw_training_data(blob: func.InputStream):

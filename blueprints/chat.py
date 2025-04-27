@@ -1,13 +1,12 @@
 import azure.functions as func
 from azure.functions import HttpRequest
-from configs.settings import openai_client, pinecone_client, pinecone_index_name
+from configs.settings import openai_client, vector_store
 from uuid import uuid4
 from models.DocumentMetadata import DocumentMetadata
 from models.ResponseModel import ResponseModel
 from models.Roles import Role
 from utils.log_usage_metrics import log_usage_metrics
 from utils.token_utils import validate_user_access
-
 chat_bp = func.Blueprint()
 
 
@@ -50,21 +49,28 @@ def main(req: HttpRequest) -> func.HttpResponse:
         if not hypothetical_document:
             return ResponseModel({"error": "Failed to generate hypothetical document."}, status_code=500)
 
-          
-        # Gera o embedding do documento hipotético
         hypothetical_document_embedding = openai_client.create_embedding(input_text=hypothetical_document)
 
-        # Realiza a busca no Pinecone
-        result = pinecone_client.vector_search(index_name=pinecone_index_name, vector=hypothetical_document_embedding)
-        matches = result.get("matches", [])  # type: ignore
+        class_code = user.get("classCode")
+        filters = {}
+        if class_code is not None:
+            filters = {"class_code": class_code}
+        
+        result = vector_store.similarity_search_by_vector(
+            embedding=hypothetical_document_embedding, k=10, filter=filters
+        )
+        
+        matches_metadata = []
+        context = []
+        for document in result:
+            context.append(document.page_content)
+            matches_metadata.append(DocumentMetadata(**document.metadata))
 
-        # Extrai apenas os textos dos metadados
-        matches_metadata: list[DocumentMetadata] = [DocumentMetadata(**match["metadata"]) for match in matches if "metadata" in match]
-        matched_texts = [match.text for match in matches_metadata]
+        print("Contexto:", context)
 
         # Cria um novo prompt para a IA com os textos extraídos
         assistant_prompt = (
-            f"{DEFAULT_PROMPT}\nBaseado nas seguintes informações: {matched_texts}\n"
+            f"{DEFAULT_PROMPT}\nBaseado nas seguintes informações: {context}\n"
             f"Por favor, responda à seguinte pergunta: {user_prompt}"
         )
 

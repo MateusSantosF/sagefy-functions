@@ -1,13 +1,12 @@
 import os
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
+from constants import BLOB_CONTAINER_NAME
 
 AZURE_STORAGE_CONNECTION_STRING = os.environ["AZURE_STORAGE_CONNECTION_STRING"]
 
-CONTAINER_NAME = "training-data-prod-1"
-
 blob_service_client = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
-container_client = blob_service_client.get_container_client(CONTAINER_NAME)
+container_client = blob_service_client.get_container_client(BLOB_CONTAINER_NAME)
 
 def list_files(prefix: str):
 

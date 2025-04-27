@@ -1,78 +1,110 @@
+import io
 import json
 import logging
 import azure.functions as func
 from pathlib import Path
 from models.DocumentMetadata import DocumentMetadata
-from utils.file_processor import extract_content
-from configs.settings import openai_client, pinecone_client
+from configs.settings import openai_client
+from constants import BLOB_CONTAINER_NAME
+from langchain_experimental.text_splitter import SemanticChunker
+from configs.settings import embeddings, vector_store
+from PyPDF2 import PdfReader
+from docx import Document as DocxDocument
 
-bp = func.Blueprint()
+process_data_bp = func.Blueprint()
 
-@bp.function_name(name="process-training-data")
-@bp.blob_trigger(
+@process_data_bp.function_name(name="process-training-data")
+@process_data_bp.blob_trigger(
     arg_name="blob",
-    path="training-data-prod/{name}",
+    path=f"{BLOB_CONTAINER_NAME}/{{name}}",
     connection="AzureWebJobsStorage"
 )
 def process_raw_training_data(blob: func.InputStream):
     logging.info(f"Processando arquivo: {blob.name}")
 
     try:
-        if blob.name is None:
+        if not blob.name:
             logging.error("Blob name is None.")
             return
-        # Ler o conteúdo do blob em bytes
+
         blob_bytes = blob.read()
-        file_extension = Path(blob.name).suffix.lower()
-        if file_extension not in ['.pdf', '.docx', '.txt', '.md']:
-            logging.error(f"Tipo de arquivo {file_extension} não suportado.")
+        ext = Path(blob.name).suffix.lower()
+
+        if ext not in ['.pdf', '.docx', '.txt', '.md']:
+            logging.error(f"Tipo de arquivo {ext} não suportado.")
             return
 
-        # Extrair conteúdo do arquivo usando LangChain
-        content = extract_content(blob_bytes, file_extension)
+        full_content = get_blob_content(ext=ext, blob_bytes=blob_bytes)
 
-        # Processar cada chunk com embeddings e Pinecone
-        for chunk in content.items:
-            text = chunk.content
+        text_splitter = SemanticChunker(embeddings,
+                                breakpoint_threshold_type="percentile",
+                                breakpoint_threshold_amount=95.0,
+                                min_chunk_size=200)
+        
 
-            # Gerar embeddings
-            embedding = openai_client.create_embedding(input_text=text)
-            # Extrair metadados relevantes
-            metadata = extract_metadata(text)
+        docs = text_splitter.create_documents([full_content])
+        class_code = Path(blob.name).parent.name
+        file_name = Path(blob.name).name 
 
-            pinecone_client.upsert_vector(
-                vector_id=chunk.id,
-                values=embedding,
-                metadata=metadata.model_dump()
-            )
+        enriched_docs = []
+        for doc in docs:
+            data = extract_metadata(doc.page_content)
+            doc.metadata = {
+                "file_id": file_name,
+                "category": data.category,
+                "subcategory": data.subcategory,
+                "class_code": class_code
+            }
+            enriched_docs.append(doc)
 
+
+        vector_store.add_documents(enriched_docs)
+        logging.info(f"{len(docs)} chunks inseridos no vector store.")
     except Exception as e:
         logging.error(f"Erro ao processar o arquivo {blob.name}: {str(e)}")
 
 
 def extract_metadata(text: str) -> DocumentMetadata:
-    """
-    Utiliza a OpenAI para extrair metadados relevantes (tags, categoria e subcategoria).
-    """
+
     try:
         prompt = (
             "Analise o seguinte texto e identifique os seguintes metadados:\n"
             "- Tags relevantes\n"
             "- Categoria principal\n"
             "- Subcategoria\n"
-
             f"Texto: {text}\n"
-            'Responda no formato JSON: {"tags": ["..."], "category": "...", "subcategory": "..."}'
+            "Responda no formato JSON: {\"tags\": [\"...\"], \"category\": \"...\", \"subcategory\": \"...\"}"
         )
-        response_text  = openai_client.create_completion_json(prompt=prompt, max_tokens=300, temperature=0.6)
+        response_text = openai_client.create_completion_json(
+            prompt=prompt, max_tokens=300, temperature=0.6
+        )
         if not response_text:
             return DocumentMetadata(text=text, category="Outros", subcategory="Outros", tags=[])
-        
-        response_json = json.loads(response_text)
-        # Valide e crie o objeto DocumentMetadata
-        metadata = DocumentMetadata(**response_json)
+
+        data = json.loads(response_text)
+        metadata = DocumentMetadata(**data)
         metadata.text = text
         return metadata
+
     except Exception as e:
         logging.error(f"Erro ao extrair metadados: {str(e)}")
         return DocumentMetadata(text=text, category="Outros", subcategory="Outros", tags=[])
+
+
+def get_blob_content(ext:str, blob_bytes:bytes):
+
+    full_text = ""
+
+    if ext in ['.txt', '.md']:
+        full_text = blob_bytes.decode('utf-8', errors='ignore')
+    elif ext == '.pdf':
+        reader = PdfReader(io.BytesIO(blob_bytes))
+        full_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    elif ext == '.docx':
+        doc = DocxDocument(io.BytesIO(blob_bytes))
+        full_text = "\n".join(paragraph.text for paragraph in doc.paragraphs)
+    else:
+        logging.error(f"Tipo de arquivo {ext} não suportado.")
+        raise 
+    
+    return full_text

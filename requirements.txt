@@ -11,4 +11,7 @@ azure-data-tables
 pyjwt
 bcrypt
 pytest
-pinecone
+langchain_experimental 
+langchain_postgres
+langchain_openai
+psycopg

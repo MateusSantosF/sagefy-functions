@@ -4,14 +4,14 @@ from typing import List, Optional
 import jwt
 import azure.functions as func
 
-from models.User import User
+from models.Token import Token
 from models.ResponseModel import ResponseModel
 from models.Roles import Role
 
 JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_ALGORITHM = "HS256"
 
-def verify_jwt(token: str, expected_type:str) -> Optional[User]:
+def verify_jwt(token: str, expected_type:str) -> Optional[Token]:
     try:
         decoded = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         if expected_type and decoded.get("type") != expected_type:

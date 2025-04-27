@@ -1,4 +1,3 @@
-# utils/openai_client.py
 import logging
 from openai import AzureOpenAI
 

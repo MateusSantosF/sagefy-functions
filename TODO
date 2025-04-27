@@ -1,3 +1,8 @@
 - [ ] - Adicionar Azure Evaluator para gerar Testes
-- [ ] - Adicionar SemanticChunking para gerar embeddings
-- [ ] - 
+  - [ ] - Criar casos de testes
+- [X] - Adicionar SemanticChunking para gerar embeddings
+- [ ] - Utilizar sistema de agentes de Smalltalk de da Disciplina
+  - [ ] - Tornar prompt genérico com base na disciplina 
+  - [ ] - Adicionar guardrails para não deixar alunos roubarem respostas via chat
+- [ ] - No select da turma do frontend, utilizar nome da turma ao invez de codigo ( mudar payload do endpoint GET da dashboard )
+- [ ] - Se usuário for ADMIN ou PROFESSOR, renderizar SELECT para forçar selecionar uma disciplina no chat.

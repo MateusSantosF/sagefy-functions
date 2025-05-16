@@ -107,7 +107,7 @@ def process_daily_dashboard(timer: func.TimerRequest) -> None:
 
 
 @dashboard_bp.function_name(name="get_dashboard")
-@dashboard_bp.route(route="dashboard", methods=["GET"])
+@dashboard_bp.route(route="dashboard", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def get_dashboard(req: func.HttpRequest) -> func.HttpResponse:
     user = validate_user_access(req, allowed_roles=[Role.ADMIN, Role.TEACHER])
     if isinstance(user, ResponseModel):

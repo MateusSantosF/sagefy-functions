@@ -13,10 +13,12 @@ bcrypt
 pytest
 langchain_experimental 
 langchain_postgres
+azure-functions-python-library
 langchain_openai
 psycopg
 pytest-asyncio
 pandas
 openpyxl
 xlsxwriter
+psycopg[binary]
 semantic_kernel

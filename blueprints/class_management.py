@@ -10,7 +10,7 @@ from utils.db_session import SessionLocal
 turmas_bp = func.Blueprint()
 
 @turmas_bp.function_name(name='register_students')
-@turmas_bp.route(route='classes/students', methods=['POST'])
+@turmas_bp.route(route='classes/students', methods=['POST'], auth_level=func.AuthLevel.ANONYMOUS)
 def register_students(req: func.HttpRequest) -> func.HttpResponse:
     """
     Registra múltiplos emails em uma turma (JSONB students).
@@ -50,7 +50,7 @@ def register_students(req: func.HttpRequest) -> func.HttpResponse:
     return ResponseModel({'message': 'Students registered successfully.', 'students': combined}, status_code=200)
 
 @turmas_bp.function_name(name='remove_student')
-@turmas_bp.route(route='classes/students/remove', methods=['POST'])
+@turmas_bp.route(route='classes/students/remove', methods=['POST'], auth_level=func.AuthLevel.ANONYMOUS)
 def remove_student(req: func.HttpRequest) -> func.HttpResponse:
     """
     Remove um estudante da lista JSONB de uma turma.
@@ -91,7 +91,7 @@ def remove_student(req: func.HttpRequest) -> func.HttpResponse:
     return ResponseModel({'message': 'Student removed.', 'students': updated}, status_code=200)
 
 @turmas_bp.function_name(name='create_class')
-@turmas_bp.route(route='classes', methods=['POST'])
+@turmas_bp.route(route='classes', methods=['POST'], auth_level=func.AuthLevel.ANONYMOUS)
 def create_class(req: func.HttpRequest) -> func.HttpResponse:
     """
     Cria uma nova turma.
@@ -133,7 +133,7 @@ def create_class(req: func.HttpRequest) -> func.HttpResponse:
     return ResponseModel({'message': 'Class created.', 'classCode': class_code}, status_code=201)
 
 @turmas_bp.function_name(name='update_class')
-@turmas_bp.route(route='classes', methods=['PUT','PATCH'])
+@turmas_bp.route(route='classes', methods=['PUT','PATCH'], auth_level=func.AuthLevel.ANONYMOUS)
 def update_class(req: func.HttpRequest) -> func.HttpResponse:
     """
     Atualiza nome ou access_code de uma turma.
@@ -170,7 +170,7 @@ def update_class(req: func.HttpRequest) -> func.HttpResponse:
     return ResponseModel({'message': 'Class updated.', 'classCode': class_code}, status_code=200)
 
 @turmas_bp.function_name(name='delete_class')
-@turmas_bp.route(route='classes', methods=['DELETE'])
+@turmas_bp.route(route='classes', methods=['DELETE'],auth_level=func.AuthLevel.ANONYMOUS)
 def delete_class(req: func.HttpRequest) -> func.HttpResponse:
     """
     Deleta uma turma.
@@ -200,7 +200,7 @@ def delete_class(req: func.HttpRequest) -> func.HttpResponse:
     return ResponseModel({'message': 'Class deleted.'}, status_code=200)
 
 @turmas_bp.function_name(name='list_classes')
-@turmas_bp.route(route='classes', methods=['GET'])
+@turmas_bp.route(route='classes', methods=['GET'],auth_level=func.AuthLevel.ANONYMOUS)
 def list_classes(req: func.HttpRequest) -> func.HttpResponse:
     """
     Lista turmas de um teacher ou todas (ADMIN).

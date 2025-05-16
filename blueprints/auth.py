@@ -15,7 +15,7 @@ auth_bp = func.Blueprint()
 
 
 @auth_bp.function_name(name='authenticate_student')
-@auth_bp.route(route='authenticate/students', methods=['POST'])
+@auth_bp.route(route='authenticate/students', methods=['POST'], auth_level=func.AuthLevel.ANONYMOUS)
 def authenticate_student(req: func.HttpRequest) -> func.HttpResponse:
     try:
 
@@ -45,7 +45,7 @@ def authenticate_student(req: func.HttpRequest) -> func.HttpResponse:
         return ResponseModel({'error': str(e)}, status_code=500)
 
 @auth_bp.function_name(name='authenticate_managers')
-@auth_bp.route(route='authenticate/managers', methods=['POST'])
+@auth_bp.route(route='authenticate/managers', methods=['POST'], auth_level=func.AuthLevel.ANONYMOUS)
 def authenticate_managers(req: func.HttpRequest) -> func.HttpResponse:
     try:
         body = req.get_json()
@@ -74,7 +74,7 @@ def authenticate_managers(req: func.HttpRequest) -> func.HttpResponse:
         return ResponseModel({'error': str(e)}, status_code=500)
 
 @auth_bp.function_name(name='change_password')
-@auth_bp.route(route='change_password', methods=['POST'])
+@auth_bp.route(route='change_password', methods=['POST'], auth_level=func.AuthLevel.ANONYMOUS)
 def change_password(req: func.HttpRequest) -> func.HttpResponse:
     try:
 
@@ -108,7 +108,7 @@ def change_password(req: func.HttpRequest) -> func.HttpResponse:
         return ResponseModel({'error': str(e)}, status_code=500)
 
 @auth_bp.function_name(name='change_teacher_password')
-@auth_bp.route(route='teachers/password', methods=['PUT'])
+@auth_bp.route(route='teachers/password', methods=['PUT'], auth_level=func.AuthLevel.ANONYMOUS)
 def change_teacher_password(req: func.HttpRequest) -> func.HttpResponse:
     user_ctx = validate_user_access(req, allowed_roles=[Role.ADMIN])
     if isinstance(user_ctx, ResponseModel):
@@ -154,7 +154,7 @@ def change_teacher_password(req: func.HttpRequest) -> func.HttpResponse:
         session.close()
         
 @auth_bp.function_name(name='create_teacher')
-@auth_bp.route(route='teachers', methods=['POST'])
+@auth_bp.route(route='teachers', methods=['POST'], auth_level=func.AuthLevel.ANONYMOUS)
 def create_teacher(req: func.HttpRequest) -> func.HttpResponse:
     # 1) validação de acesso
     user_ctx = validate_user_access(req, allowed_roles=[Role.ADMIN])
@@ -219,7 +219,7 @@ def create_teacher(req: func.HttpRequest) -> func.HttpResponse:
 
 
 @auth_bp.function_name(name='list_teachers')
-@auth_bp.route(route='teachers', methods=['GET'])
+@auth_bp.route(route='teachers', methods=['GET'], auth_level=func.AuthLevel.ANONYMOUS)
 def list_teachers(req: func.HttpRequest) -> func.HttpResponse:
     try:
         # Somente ADMIN pode listar
@@ -253,7 +253,7 @@ def list_teachers(req: func.HttpRequest) -> func.HttpResponse:
 
 # 2) Inativar professor
 @auth_bp.function_name(name='deactivate_teacher')
-@auth_bp.route(route='teachers', methods=['DELETE'])
+@auth_bp.route(route='teachers', methods=['DELETE'], auth_level=func.AuthLevel.ANONYMOUS)
 def deactivate_teacher(req: func.HttpRequest) -> func.HttpResponse:
     try:
         # Apenas ADMIN pode inativar
@@ -287,7 +287,7 @@ def deactivate_teacher(req: func.HttpRequest) -> func.HttpResponse:
         return ResponseModel({'error': str(e)}, status_code=500)
     
 @auth_bp.function_name(name='refresh_token')
-@auth_bp.route(route='refresh-token', methods=['POST'])
+@auth_bp.route(route='refresh-token', methods=['POST'], auth_level=func.AuthLevel.ANONYMOUS)
 def refresh_token(req: func.HttpRequest) -> func.HttpResponse:
 
     try:

@@ -109,7 +109,7 @@ def core_agent_flow(user, user_prompt: str):
     return assistant_response, None
 
 @chat_bp.function_name(name="chat")
-@chat_bp.route(route="chat", methods=["POST"])
+@chat_bp.route(route="chat", methods=["POST"],auth_level=func.AuthLevel.ANONYMOUS)
 def main(req: HttpRequest) -> func.HttpResponse:
     request_id = str(uuid4())
     try:

@@ -25,7 +25,7 @@ def get_folder(class_code: str | None, user: dict) -> str:
     return class_code
 
 @files_bp.function_name(name="get_files")
-@files_bp.route(route="files", methods=["GET"])
+@files_bp.route(route="files", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def get_files(req: func.HttpRequest) -> func.HttpResponse:
     try:
         class_code = req.params.get("class_code")
@@ -56,7 +56,7 @@ def get_files(req: func.HttpRequest) -> func.HttpResponse:
         return ResponseModel({'error': str(e)}, status_code=500)
 
 @files_bp.function_name(name="upload_file")
-@files_bp.route(route="files", methods=["POST"])
+@files_bp.route(route="files", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def upload_file_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     try:
         db_session = SessionLocal()
@@ -106,7 +106,7 @@ def upload_file_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         return ResponseModel({'error': str(e)}, status_code=500)
 
 @files_bp.function_name(name="delete_file")
-@files_bp.route(route="files", methods=["DELETE"])
+@files_bp.route(route="files", methods=["DELETE"], auth_level=func.AuthLevel.ANONYMOUS)
 def delete_file_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     try:
         db_session = SessionLocal()

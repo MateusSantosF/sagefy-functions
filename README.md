@@ -99,6 +99,12 @@ As principais bibliotecas utilizadas no projeto estão listadas abaixo e são in
 
 2. Subir um arquivo para o container de origem no Blob Storage e observar o processamento.
 
+### Executando testes
+
+```bash
+ python -m tests.test_chat_quality
+ ```
+
 ### Como fazer deploy deploy
 
 1. Execute o seguinte comando, substituindo `<APP_NAME>` pelo nome da sua aplicação no Azure:

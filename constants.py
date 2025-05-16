@@ -1,9 +1,4 @@
-import os
-
 BLOB_CONTAINER_NAME = "training-data"
 INTERMEDIATE_PROCESSED_TRAINING_DATA_CONTAINER = "intermediate-processed-training-data"
-
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL")
-ADMIN_PASSWORD_HASH = os.environ.get("ADMIN_PASSWORD_HASH")
 JWT_EXP_DELTA_SECONDS = 3600  # 1 hora
 REFRESH_TOKEN_EXP_DELTA_SECONDS = 3600 * 24 * 30  # 30 dias

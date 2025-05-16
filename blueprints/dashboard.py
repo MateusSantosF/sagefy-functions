@@ -8,7 +8,7 @@ from models.DatabaseModels import ClassModel, MetricsModel, DailyDashboardModel
 from models.Roles import Role
 from models.ResponseModel import ResponseModel
 from utils.token_utils import validate_user_access
-from utils.db_session import db_session
+from utils.db_session import SessionLocal
 
 # Blueprint
 dashboard_bp = func.Blueprint()
@@ -57,6 +57,8 @@ def get_top_students(metrics: List[MetricsModel]) -> List[Dict[str, Any]]:
 def process_daily_dashboard(timer: func.TimerRequest) -> None:
     logging.info("Iniciando consolidação diária de métricas...")
     try:
+        db_session = SessionLocal()
+
         # Buscar todas as métricas ainda não consolidadas
         metrics = db_session.execute(select(MetricsModel)).scalars().all()
         if not metrics:
@@ -112,6 +114,8 @@ def get_dashboard(req: func.HttpRequest) -> func.HttpResponse:
         return user
 
     try:
+        db_session = SessionLocal()
+
         # Lista de classes
         if user.get("role") == Role.ADMIN.value:
             classes = db_session.execute(select(ClassModel)).scalars().all()

@@ -9,7 +9,7 @@ from models.Roles import Role
 from models.ResponseModel import ResponseModel
 from utils.token_utils import validate_user_access
 from utils.blob_utils import upload_file, delete_blob
-from utils.db_session import db_session
+from utils.db_session import SessionLocal
 
 files_bp = func.Blueprint()
 
@@ -38,6 +38,7 @@ def get_files(req: func.HttpRequest) -> func.HttpResponse:
         stmt = select(FileMeta).where(
             FileMeta.class_code == folder
         )
+        db_session = SessionLocal()
         files = db_session.execute(stmt).scalars().all()
 
         result = []
@@ -58,6 +59,7 @@ def get_files(req: func.HttpRequest) -> func.HttpResponse:
 @files_bp.route(route="files", methods=["POST"])
 def upload_file_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     try:
+        db_session = SessionLocal()
         user = validate_user_access(req, allowed_roles=[Role.TEACHER, Role.ADMIN])
         if isinstance(user, ResponseModel):
             return user
@@ -107,6 +109,7 @@ def upload_file_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 @files_bp.route(route="files", methods=["DELETE"])
 def delete_file_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     try:
+        db_session = SessionLocal()
         user = validate_user_access(req, allowed_roles=[Role.TEACHER, Role.ADMIN])
         if isinstance(user, ResponseModel):
             return user

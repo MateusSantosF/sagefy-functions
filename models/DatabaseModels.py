@@ -5,7 +5,7 @@ from sqlalchemy.orm import relationship
 import uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import (
-  Column, String, Integer, JSON, ForeignKey,DateTime,Date
+  Column, String, Integer, JSON, ForeignKey,DateTime,Date, Boolean
 )
 
 Base = declarative_base()
@@ -17,6 +17,7 @@ class UserModel(Base):
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True) 
     classes = relationship('ClassModel', back_populates='teacher')
 
 class ClassModel(Base):

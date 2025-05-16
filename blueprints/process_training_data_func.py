@@ -3,10 +3,15 @@ import json
 import logging
 import azure.functions as func
 from pathlib import Path
+
+from configs.openai_client import AzureOpenAIClient
 from models.DocumentMetadata import DocumentMetadata
-from configs.settings import openai_client
 from constants import BLOB_CONTAINER_NAME
+
 from langchain_experimental.text_splitter import SemanticChunker
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.schema import Document as LangchainDocument
+
 from configs.settings import embeddings, vector_store
 from PyPDF2 import PdfReader
 from docx import Document as DocxDocument
@@ -35,19 +40,21 @@ def process_raw_training_data(blob: func.InputStream):
             return
 
         full_content = get_blob_content(ext=ext, blob_bytes=blob_bytes)
+        chunk_size = 512 # https://arxiv.org/pdf/2407.01219
 
-        text_splitter = SemanticChunker(embeddings,
-                                breakpoint_threshold_type="percentile",
-                                breakpoint_threshold_amount=95.0,
-                                min_chunk_size=200)
-        
+        semantic_chunker = SemanticChunker(
+            embeddings,
+            breakpoint_threshold_type="percentile",
+            breakpoint_threshold_amount=95.0,
+            min_chunk_size=chunk_size
+        )
+        semantic_docs = semantic_chunker.create_documents([full_content])
 
-        docs = text_splitter.create_documents([full_content])
         class_code = Path(blob.name).parent.name
-        file_name = Path(blob.name).name 
+        file_name = Path(blob.name).name
 
         enriched_docs = []
-        for doc in docs:
+        for doc in semantic_docs:
             data = extract_metadata(doc.page_content)
             doc.metadata = {
                 "file_id": file_name,
@@ -57,15 +64,44 @@ def process_raw_training_data(blob: func.InputStream):
             }
             enriched_docs.append(doc)
 
+        char_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size, 
+            chunk_overlap=60, # ~12% https://learn.microsoft.com/en-us/azure/search/vector-search-how-to-chunk-documents#content-overlap-considerations
+            length_function=token_count,
+            separators=[
+                "\n\n",
+                "\n",
+                " ",
+                ".",
+                ",",
+                "\u200b",  # Zero-width space
+                "\uff0c",  # Fullwidth comma
+                "\u3001",  # Ideographic comma
+                "\uff0e",  # Fullwidth full stop
+                "\u3002",  # Ideographic full stop
+                "",
+            ],
+            is_separator_regex=False
+        )
+        final_docs = []
+        for doc in enriched_docs:
+            sub_chunks = char_splitter.split_text(doc.page_content)
+            logging.debug(f"Bloco semântico com metadata {doc.metadata} gerou {len(sub_chunks)} sub-chunks.")
+            for chunk in sub_chunks:
+                cleared_text = chunk.replace("\n", " ").replace("\r", " ").strip()
+                final_docs.append(
+                    LangchainDocument(page_content=cleared_text, metadata=doc.metadata)
+                )
 
-        vector_store.add_documents(enriched_docs)
-        logging.info(f"{len(docs)} chunks inseridos no vector store.")
+        # 5) Armazena os chunks finais no vector store
+        vector_store.add_documents(final_docs)
+        logging.info(f"{len(final_docs)} chunks inseridos no vector store.")
+
     except Exception as e:
         logging.error(f"Erro ao processar o arquivo {blob.name}: {str(e)}")
 
 
 def extract_metadata(text: str) -> DocumentMetadata:
-
     try:
         prompt = (
             "Analise o seguinte texto e identifique os seguintes metadados:\n"
@@ -75,7 +111,7 @@ def extract_metadata(text: str) -> DocumentMetadata:
             f"Texto: {text}\n"
             "Responda no formato JSON: {\"tags\": [\"...\"], \"category\": \"...\", \"subcategory\": \"...\"}"
         )
-        response_text = openai_client.create_completion_json(
+        response_text = AzureOpenAIClient.create_completion_json(
             prompt=prompt, max_tokens=300, temperature=0.6
         )
         if not response_text:
@@ -93,18 +129,23 @@ def extract_metadata(text: str) -> DocumentMetadata:
 
 def get_blob_content(ext:str, blob_bytes:bytes):
 
-    full_text = ""
-
     if ext in ['.txt', '.md']:
-        full_text = blob_bytes.decode('utf-8', errors='ignore')
+        return blob_bytes.decode('utf-8', errors='ignore')
     elif ext == '.pdf':
         reader = PdfReader(io.BytesIO(blob_bytes))
-        full_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
     elif ext == '.docx':
         doc = DocxDocument(io.BytesIO(blob_bytes))
-        full_text = "\n".join(paragraph.text for paragraph in doc.paragraphs)
+        return "\n".join(paragraph.text for paragraph in doc.paragraphs)
     else:
         logging.error(f"Tipo de arquivo {ext} não suportado.")
-        raise 
-    
-    return full_text
+        raise ValueError(f"Unsupported file type: {ext}")
+
+
+def token_count(input_string) -> int:
+    import tiktoken
+
+    encoding = tiktoken.get_encoding("cl100k_base")
+    tokens = encoding.encode(input_string)
+    token_count = len(tokens)
+    return token_count

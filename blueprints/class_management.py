@@ -1,11 +1,11 @@
 import uuid
 import azure.functions as func
 from sqlalchemy import select
-from models.DatabaseModels import ClassModel, UserModel
+from models.DatabaseModels import ClassModel
 from models.ResponseModel import ResponseModel
 from models.Roles import Role
 from utils.token_utils import validate_user_access
-from utils.db_session import db_session
+from utils.db_session import SessionLocal
 
 turmas_bp = func.Blueprint()
 
@@ -26,6 +26,7 @@ def register_students(req: func.HttpRequest) -> func.HttpResponse:
     if not emails or not class_code:
         return ResponseModel({'error': 'emails e classCode obrigatórios.'}, status_code=400)
 
+    db_session = SessionLocal()
     cls = db_session.execute(
         select(ClassModel).where(ClassModel.class_code == class_code)
     ).scalar_one_or_none()
@@ -64,6 +65,7 @@ def remove_student(req: func.HttpRequest) -> func.HttpResponse:
     if not email or not class_code:
         return ResponseModel({'error': 'email e classCode obrigatórios.'}, status_code=400)
 
+    db_session = SessionLocal()
     cls = db_session.execute(
         select(ClassModel).where(ClassModel.class_code == class_code)
     ).scalar_one_or_none()
@@ -107,6 +109,7 @@ def create_class(req: func.HttpRequest) -> func.HttpResponse:
     if not class_code or not access_code or not class_name:
         return ResponseModel({'error': 'classCode, accessCode e className obrigatórios.'}, status_code=400)
 
+    db_session = SessionLocal()
     exists = db_session.execute(
         select(ClassModel).where(ClassModel.class_code == class_code)
     ).scalar_one_or_none()
@@ -146,6 +149,7 @@ def update_class(req: func.HttpRequest) -> func.HttpResponse:
     if not class_code:
         return ResponseModel({'error': 'classCode obrigatório.'}, status_code=400)
 
+    db_session = SessionLocal()
     cls = db_session.execute(
         select(ClassModel).where(ClassModel.class_code == class_code)
     ).scalar_one_or_none()
@@ -179,6 +183,7 @@ def delete_class(req: func.HttpRequest) -> func.HttpResponse:
     if not code:
         return ResponseModel({'error': 'classCode obrigatório.'}, status_code=400)
 
+    db_session = SessionLocal()
     cls = db_session.execute(
         select(ClassModel).where(ClassModel.class_code == code)
     ).scalar_one_or_none()
@@ -205,20 +210,11 @@ def list_classes(req: func.HttpRequest) -> func.HttpResponse:
         return user
 
     if user.get('role') == Role.ADMIN.value:
-        prof_email = req.params.get('professorEmail')
-        if prof_email:
-            users = db_session.execute(
-                select(UserModel).where(UserModel.email == prof_email, UserModel.role == Role.TEACHER.value)
-            ).scalar_one_or_none()
-            if not users:
-                db_session.close()
-                return ResponseModel({'error': 'Professor não existe.'}, status_code=404)
-            stmt = select(ClassModel).where(ClassModel.teacher_id == users.id)
-        else:
-            stmt = select(ClassModel)
+        stmt = select(ClassModel)
     else:
         stmt = select(ClassModel).where(ClassModel.teacher_id == user.get('sub'))
 
+    db_session = SessionLocal()
     classes = db_session.execute(stmt).scalars().all()
     db_session.close()
     result = [
@@ -245,6 +241,7 @@ def get_class_by_code(req: func.HttpRequest) -> func.HttpResponse:
     if isinstance(user, ResponseModel):
         return user
 
+    db_session = SessionLocal()
     cls = db_session.execute(
         select(ClassModel).where(ClassModel.class_code == code)
     ).scalar_one_or_none()

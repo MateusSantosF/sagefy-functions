@@ -5,7 +5,7 @@ from models.DatabaseModels import MetricsModel
 from models.DocumentMetadata import DocumentMetadata
 from openai.types.chat import ChatCompletion
 from models.Roles import Role
-from utils.db_session import db_session
+from utils.db_session import SessionLocal
 
 
 def log_usage_metrics(
@@ -17,6 +17,8 @@ def log_usage_metrics(
     """
     Registra métricas de uso no Postgres na tabela metrics.
     """
+    db_session = SessionLocal()
+
     # Tokens
     completion_tokens = response.usage.completion_tokens  # type: ignore
     prompt_tokens = response.usage.prompt_tokens  # type: ignore

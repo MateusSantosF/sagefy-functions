@@ -15,3 +15,8 @@ langchain_experimental
 langchain_postgres
 langchain_openai
 psycopg
+pytest-asyncio
+pandas
+openpyxl
+xlsxwriter
+semantic_kernel

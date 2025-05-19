@@ -227,7 +227,7 @@ def list_classes(req: func.HttpRequest) -> func.HttpResponse:
     ]
     return ResponseModel({'classes': result}, status_code=200)
 
-@turmas_bp.function_name(name='get_class_by_code')
+@turmas_bp.function_name(name='get_class_by_code',auth_level=func.AuthLevel.ANONYMOUS)
 @turmas_bp.route(route='classes/read', methods=['GET'])
 def get_class_by_code(req: func.HttpRequest) -> func.HttpResponse:
     """

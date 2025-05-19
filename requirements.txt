@@ -13,7 +13,6 @@ bcrypt
 pytest
 langchain_experimental 
 langchain_postgres
-azure-functions-python-library
 langchain_openai
 psycopg
 pytest-asyncio

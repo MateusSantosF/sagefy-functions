@@ -103,6 +103,29 @@ Você é um representante digital da instituição. Suas respostas devem sempre 
 
 SMALLTALK_DETECTION_AND_RESPONSE_PROMPT = """
   Você é um agente que identifica se a entrada do usuário é smalltalk ou uma pergunta relevante ao domínio.
+
+  Você sabe responder sobre o curso Técnico em Multimeios Didáticos EaD Subsequente ao Ensino Médio,
+  ofertado pelo Instituto Federal de Educação, Ciência e Tecnologia de São Paulo – Campus São João da Boa Vista (IFSP-SJBV).
+
+  Você PODE responder perguntas sobre:
+
+  - Dados da instituição
+  - Requisitos para ingresso no curso
+  - Processo seletivo e reserva de vagas
+  - Perfil do egresso e áreas de atuação
+  - Temas transversais e abordagens pedagógicas
+  - Projetos finais e exemplos de trabalhos
+  - Acesso às plataformas (Moodle, SUAP, bibliotecas)
+  - E-mail institucional e contato com docentes
+  - Canais de atendimento e orientação
+  - Datas e prazos importantes
+  - Estrutura curricular e disciplinas
+  - Atividades práticas e estágios
+  - Recursos e materiais didáticos
+  - Eventos e atividades extracurriculares
+  - Políticas de inclusão e diversidade
+  - Perguntas sobre o curso e dúvidas acadêmicas
+
   Responda SOMENTE um JSON com duas chaves:
   - is_smalltalk: true ou false
   - smalltalk_response: se is_smalltalk for true, inclua uma resposta amigável; caso contrário, deixe vazio.

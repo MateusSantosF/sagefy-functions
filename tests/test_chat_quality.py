@@ -1,20 +1,22 @@
-from tests.setup_envs import load_local_settings
-from tests.tests_case import TESTS_CASES
-load_local_settings()
-
-from configs.openai_client import AzureOpenAIClient
+import asyncio
 import os
 import pandas as pd
-import asyncio
-
-from configs.system_prompt import DEFAULT_PROMPT
-from configs.settings import vector_store
+from tests.setup_envs import load_local_settings
+load_local_settings()
+from blueprints.chat import core_agent_flow         
 from azure.ai.evaluation import (
     AzureOpenAIModelConfiguration,
     IntentResolutionEvaluator,
     ResponseCompletenessEvaluator,
     TaskAdherenceEvaluator,
 )
+from tests.tests_case import TESTS_CASES
+
+user = {
+    "id": "teste_usuario_01",
+    "name": "Usuário de Teste",
+    "classCode": None   
+}
 
 model_config = AzureOpenAIModelConfiguration(
     azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
@@ -23,15 +25,17 @@ model_config = AzureOpenAIModelConfiguration(
     azure_deployment=os.environ["AZURE_OPENAI_MODEL"]
 )
 
-def save_with_excel_formatting(df):
+async def execute_test_case(query: str):
+    response, used_docs = core_agent_flow(user, query, log_usage=False)
+    return response, used_docs
+
+def save_with_excel_formatting(df: pd.DataFrame, file_name:str = "test_results.xlsx"):
     df = df.rename(columns={"query_id": "test_id"})  # Caso ainda esteja usando query_id
     ordered_cols = ["test_id", "intent_score", "completeness_score", "task_adherence_score", "query", "chatbot_response"]
     other_cols = [col for col in df.columns if col not in ordered_cols]
     df = df[ordered_cols + other_cols]
 
-    # Gera Excel com formatação e tabela
-    output_file = "test_results_azure_case_04_hybrid_approach_no_hyde.xlsx"
-    with pd.ExcelWriter(output_file, engine="xlsxwriter") as writer:
+    with pd.ExcelWriter(file_name, engine="xlsxwriter") as writer:
         df.to_excel(writer, sheet_name="results", index=False)
         workbook  = writer.book
         sheet     = writer.sheets["results"]
@@ -68,65 +72,46 @@ def save_with_excel_formatting(df):
             'columns': [{'header': hdr} for hdr in df.columns],
             'style': 'Table Style Medium 9'
         })
-    print(f"✅ Avaliação salva em '{output_file}'")
+    print(f"✅ Avaliação salva em '{file_name}'")
 
-async def execute_test_case(query: str):
-    embedding = AzureOpenAIClient.create_embedding(input_text=query)
-    filters = {}  # ou setar class_code
-    docs = vector_store.similarity_search_with_score_by_vector(embedding, k=8, filter=filters)
-    used_documents = ",".join([f"{doc.metadata['file_id']}[{score:.4f}]" for doc, score in docs])
 
-    # 3) Monta contexto e metadata
-    context = [doc.page_content for doc, score in docs]
-
-    # 4) Cria prompt final e chama chatbot
-    assistant_prompt = (
-        f"{DEFAULT_PROMPT}\nBaseado nas seguintes informações: {context}\n"
-        f"Responda à seguinte pergunta: {query}"
-    )
-    assistant_response, raw = AzureOpenAIClient.create_completion(prompt=assistant_prompt)
-
-    return assistant_response, used_documents
-
-async def evaluate_with_azure():
-    print("Iniciando avaliação com Azure...")
-    intent_evaluator      = IntentResolutionEvaluator(model_config=model_config)
-    completeness_evaluator = ResponseCompletenessEvaluator(model_config=model_config)
-    adherence_evaluator    = TaskAdherenceEvaluator(model_config=model_config)
-
+async def main():
+    print("🔎 Iniciando avaliação com Azure AI Evaluators...")
     results = []
 
+    intent_evaluator = IntentResolutionEvaluator(model_config=model_config)
+    completeness_evaluator = ResponseCompletenessEvaluator(model_config=model_config)
+    adherence_evaluator = TaskAdherenceEvaluator(model_config=model_config)
+
     for idx, case in enumerate(TESTS_CASES, start=1):
-        query_id = f"test_{idx}"
+        test_id = f"test_{idx}"
         query = case["query"]
         expected = case["expected_answer"]
-        print(f"Avaliando teste: {query_id}")
-        print(f"  Pergunta: {query}")
 
-        # 1) executa chat
+        print(f"==========\nAvaliando {test_id}:\n  Pergunta: {query}")
         response, used_docs = await execute_test_case(query)
-        # 2) avalia via Azure
-        intent  = intent_evaluator(query=query, response=response)
-        completeness = completeness_evaluator(response=response, ground_truth=expected)
-        adherence   = adherence_evaluator(query=query, response=response)
+        intent_result = intent_evaluator(query=query, response=response)
+        completeness_result = completeness_evaluator(response=response, ground_truth=expected)
+        adherence_result = adherence_evaluator(query=query, response=response)
 
-        # 3) coleta resultados
+        # 4.2.3. Armazena no dicionário de resultados
         results.append({
-            "test_id": query_id,
+            "test_id": test_id,
             "query": query,
-            "chatbot_response": response,
             "expected_answer": expected,
+            "chatbot_response": response,
             "used_documents": used_docs,
-            "intent_score": intent.get("intent_resolution"),
-            "completeness_score": completeness.get("response_completeness"),
-            "task_adherence_score": adherence.get("task_adherence"),
-            "intent_explanation": intent.get("intent_resolution_reason"),
-            "completeness_explanation": completeness.get("response_completeness_reason"),
-            "task_adherence_explanation": adherence.get("task_adherence_reason"),
+            "intent_score": intent_result.get("intent_resolution"),
+            "intent_explanation": intent_result.get("intent_resolution_reason"),
+            "completeness_score": completeness_result.get("response_completeness"),
+            "completeness_explanation": completeness_result.get("response_completeness_reason"),
+            "task_adherence_score": adherence_result.get("task_adherence"),
+            "task_adherence_explanation": adherence_result.get("task_adherence_reason"),
         })
 
     df = pd.DataFrame(results)
-    save_with_excel_formatting(df)
+    save_with_excel_formatting(df, "test_results_rag_hyde.xlsx")
+    print("✅ Processo de avaliação concluído.")
 
 if __name__ == "__main__":
-    asyncio.run(evaluate_with_azure())
+    asyncio.run(main())

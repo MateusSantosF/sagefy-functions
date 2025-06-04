@@ -22,12 +22,14 @@ def authenticate_student(req: func.HttpRequest) -> func.HttpResponse:
         body = req.get_json()
         email = body.get('email')
         access_code = body.get('accessCode')
+        class_code = body.get('classCode')
         if not email or not access_code:
             return ResponseModel({'error': 'Email e accessCode são obrigatórios.'}, status_code=400)
 
         stmt = select(ClassModel).where(
             ClassModel.access_code == access_code,
-            ClassModel.students.contains([email])
+            ClassModel.class_code == class_code,
+            ClassModel.students.contains([email]),
         )
         db_session = SessionLocal()
         classes = db_session.execute(stmt).scalars().all()

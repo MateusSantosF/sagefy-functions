@@ -19,10 +19,6 @@ chat_bp = func.Blueprint()
 
 
 def parse_request(req: HttpRequest):
-    """
-    Extrai `prompt` e `history` da requisição.
-    Retorna (prompt, history) ou (None, ResponseModel) em caso de erro.
-    """
     try:
         body = req.get_json()
     except ValueError:
@@ -36,22 +32,11 @@ def parse_request(req: HttpRequest):
     if not isinstance(history, list):
         return None, None, ResponseModel({"error": "Campo 'history' deve ser um array."}, status_code=400)
 
-    # Mantém apenas as últimas 6 mensagens
     history = history[-6:]
     return prompt, history, None
 
-# --- Smalltalk Detection and Response (única chamada LLM) ---
 def detect_and_respond_smalltalk(user_prompt: str, history: list) -> str:
-    """
-    Emite uma única chamada à LLM que retorna um JSON indicando se é smalltalk
-    e uma possível resposta. Retorna a resposta do smalltalk ou None.
-    Exemplo de JSON esperado:
-      {
-        "is_smalltalk": true,
-        "smalltalk_response": "Oi! Tudo bem?"
-      }
-    """
-    # Monta contexto a partir do histórico
+
     history_str = "\n".join([f"{msg['sender']}: {msg['content']}" for msg in history])
     combined = (
         f"Histórico de conversa:\n{history_str}\n" if history_str else ""
@@ -73,6 +58,53 @@ def detect_and_respond_smalltalk(user_prompt: str, history: list) -> str:
         return None
     return payload.get("smalltalk_response", "").strip()
 
+
+def generate_hypothetical_document(question: str) -> str:
+    """
+    Gera um documento hipotético a partir de uma pergunta, usando o modelo Azure OpenAI.
+    Esse texto simula a resposta que o seu próprio chatbot daria, e será usado como chave para a busca vetorial.
+    """
+    # Montamos um prompt que indica ao modelo que crie uma resposta bem detalhada para servir de "contexto" na busca.
+    hyde_prompt = (
+        "Você é um sistema de geração de documentos hipotéticos.\n"
+        "Dada a pergunta abaixo, gere uma resposta detalhada que cubra todos os pontos relevantes:\n\n"
+        f"Pergunta: {question}\n"
+        "Resposta detalhada (documento hipotético):"
+    )
+    # create_completion retorna (texto_gerado, resposta_raw). Usamos apenas o texto.
+    hyde_doc, _ = AzureOpenAIClient.create_completion(prompt=hyde_prompt)
+    return hyde_doc
+
+def search_vector_store_hyde(document: str, user_class: str):
+    """
+    1) Gera o documento hipotético (hyde) a partir da pergunta (document).
+    2) Cria embedding desse hyde document.
+    3) Executa a busca vetorial usando esse embedding, aplicando filtros por class_code.
+    4) Retorna lista de textos (context) e metadados.
+    """
+    
+    # 1) Gera o documento hipotético
+    hyde_doc = generate_hypothetical_document(document)
+    embedding = AzureOpenAIClient.create_embedding(input_text=hyde_doc)
+
+    filters = (
+        {"$or": [
+            {"class_code": user_class},
+            {"class_code": "admin"},
+            {"class_code": None}
+        ]}
+        if user_class else {}
+    )
+
+    results = vector_store.similarity_search_by_vector(
+        embedding=embedding,
+        k=10,
+        filter=filters
+    )
+
+    context = [doc.page_content for doc in results]
+    metadata = [DocumentMetadata(**doc.metadata) for doc in results]
+    return context, metadata
 
 def search_vector_store(document: str, user_class: str):
     embedding = AzureOpenAIClient.create_embedding(input_text=document)
@@ -96,17 +128,19 @@ def compose_assistant_prompt(context: list, user_prompt: str) -> str:
     )
 
 
-def core_agent_flow(user, user_prompt: str):
+def core_agent_flow(user, user_prompt: str, log_usage=True):
     context, metadata = search_vector_store(user_prompt, user.get("classCode"))
     assistant_prompt = compose_assistant_prompt(context, user_prompt)
     assistant_response, raw_resp = AzureOpenAIClient.create_completion(prompt=assistant_prompt)
-    log_usage_metrics(
-        user=user,
-        prompt=user_prompt,
-        response=raw_resp,
-        metadata=metadata,
-    )
-    return assistant_response, None
+
+    if log_usage:
+        log_usage_metrics(
+            user=user,
+            prompt=user_prompt,
+            response=raw_resp,
+            metadata=metadata,
+        )
+    return assistant_response, context
 
 @chat_bp.function_name(name="chat")
 @chat_bp.route(route="chat", methods=["POST"],auth_level=func.AuthLevel.ANONYMOUS)

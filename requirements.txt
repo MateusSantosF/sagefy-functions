@@ -21,3 +21,4 @@ openpyxl
 xlsxwriter
 psycopg[binary]
 semantic_kernel
+azure-ai-evaluation

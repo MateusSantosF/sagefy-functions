@@ -3,6 +3,7 @@ from azure.functions import HttpRequest
 from uuid import uuid4
 import json
 
+from blueprints.process_training_data_func import clean_utf8_text
 from configs.openai_client import AzureOpenAIClient
 from configs.system_prompt import (
     DEFAULT_PROMPT,
@@ -18,13 +19,15 @@ from utils.token_utils import validate_user_access
 chat_bp = func.Blueprint()
 
 
-def parse_request(req: HttpRequest):
+def parse_request(req: HttpRequest, student_class_name= str | None):
     try:
         body = req.get_json()
     except ValueError:
         return None, None, ResponseModel({"error": "Formato JSON inválido."}, status_code=400)
+    
 
     prompt = body.get("prompt", "").strip()
+    prompt_enchanced = f"Sobre a disciplina {student_class_name}, responda: {prompt}" if student_class_name else prompt
     if not prompt:
         return None, None, ResponseModel({"error": "Campo 'prompt' é obrigatório."}, status_code=400)
 
@@ -33,22 +36,32 @@ def parse_request(req: HttpRequest):
         return None, None, ResponseModel({"error": "Campo 'history' deve ser um array."}, status_code=400)
 
     history = history[-6:]
-    return prompt, history, None
+    return prompt, history, prompt_enchanced, None
+
+def build_history_string(history: list) -> str:
+    """
+    Recebe uma lista de dicts com chaves 'sender' e 'content' e retorna
+    uma string com cada mensagem em uma linha no formato "sender: content".
+    """
+    lines = [
+        f"{msg['sender']}: {msg['content']}"
+        for msg in history
+        if 'sender' in msg and 'content' in msg
+    ]
+    return "\n".join(lines)
 
 def detect_and_respond_smalltalk(user_prompt: str, history: list) -> str:
-
-    history_str = "\n".join([f"{msg['sender']}: {msg['content']}" for msg in history])
+    history_str = build_history_string(history)
     combined = (
-        f"Histórico de conversa:\n{history_str}\n" if history_str else ""
-    ) + f"Mensagem atual do Usuário: {user_prompt}\n"
+        f"Histórico de conversa:\n{history_str}\n\n" 
+    ) + f"Mensagem do Usuário: {user_prompt}\n"
 
-    # Constrói prompt para detecção e resposta de smalltalk
     prompt = (
         f"{SMALLTALK_DETECTION_AND_RESPONSE_PROMPT}\n"
         f"{combined}"
     )
 
-    response_text, _ = AzureOpenAIClient.create_completion(prompt=prompt)
+    response_text = AzureOpenAIClient.create_completion_json(prompt=prompt)
     try:
         payload:dict = json.loads(response_text)
     except json.JSONDecodeError:
@@ -119,18 +132,21 @@ def search_vector_store(document: str, user_class: str):
     return context, metadata
 
 
-def compose_assistant_prompt(context: list, user_prompt: str) -> str:
+def compose_assistant_prompt(context: list, user_prompt: str, user_history: list | None = []) -> str:
     context_str = "; ".join(context)
+    history_str = build_history_string(user_history) 
+
     return (
         f"{DEFAULT_PROMPT}\n"
         f"Baseado nas seguintes informações: {context_str}\n"
-        f"Responda à seguinte pergunta: {user_prompt}"
+        f"Pergunta do usuário: {user_prompt}\n"
+        f"\nHistórico de conversa:\n{history_str}"
     )
 
 
-def core_agent_flow(user, user_prompt: str, log_usage=True):
+def core_agent_flow(user, user_prompt: str, user_history: list, log_usage=True):
     context, metadata = search_vector_store(user_prompt, user.get("classCode"))
-    assistant_prompt = compose_assistant_prompt(context, user_prompt)
+    assistant_prompt = compose_assistant_prompt(context, user_prompt, user_history)
     assistant_response, raw_resp = AzureOpenAIClient.create_completion(prompt=assistant_prompt)
 
     if log_usage:
@@ -151,7 +167,7 @@ def main(req: HttpRequest) -> func.HttpResponse:
         if isinstance(user, ResponseModel):
             return user
 
-        user_prompt, history, err = parse_request(req)
+        user_prompt, history, prompt_enchanced, err = parse_request(req, user.get("className", None))
         if err:
             return err
 
@@ -164,10 +180,7 @@ def main(req: HttpRequest) -> func.HttpResponse:
             }
             return ResponseModel(payload, status_code=200)
 
-        assistant_response, error_resp = core_agent_flow(user, user_prompt)
-        if error_resp:
-            return error_resp
-
+        assistant_response, _ = core_agent_flow(user, prompt_enchanced, history)
         payload = {
             "id": request_id,
             "response": assistant_response,

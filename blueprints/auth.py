@@ -38,7 +38,7 @@ def authenticate_student(req: func.HttpRequest) -> func.HttpResponse:
             return ResponseModel({'error': 'Credenciais de aluno inválidas.'}, status_code=403)
 
         cls = classes[0]
-        payload = {'email': email, 'classCode': cls.class_code, 'role': 'STUDENT'}
+        payload = {'email': email, 'classCode': cls.class_code, 'role': 'STUDENT', "className": cls.class_name, "sub": cls.id}
         at = create_jwt(payload, expires_delta_seconds=JWT_EXP_DELTA_SECONDS, type='access')
         rt = create_jwt(payload, expires_delta_seconds=REFRESH_TOKEN_EXP_DELTA_SECONDS, type='refresh')
         return ResponseModel({'accessToken': at, 'refreshToken': rt}, status_code=200)

@@ -1,3 +1,4 @@
+from tkinter import Text
 from sqlalchemy.ext.declarative import declarative_base
 from utils.db_session import db_engine
 from datetime import datetime
@@ -68,6 +69,7 @@ class DailyDashboardModel(Base):
     top_categories = Column(JSON, nullable=False)
     top_subcategories = Column(JSON, nullable=False)
     top_students = Column(JSON, nullable=False)
+    daily_summary = Column(String, nullable=True) 
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 # Create tables

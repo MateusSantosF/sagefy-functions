@@ -1,6 +1,7 @@
 import io
 import json
 import logging
+import unicodedata
 import azure.functions as func
 from pathlib import Path
 
@@ -106,8 +107,8 @@ def extract_metadata(text: str) -> DocumentMetadata:
         prompt = (
             "Analise o seguinte texto e identifique os seguintes metadados:\n"
             "- Tags relevantes\n"
-            "- Categoria principal\n"
-            "- Subcategoria\n"
+            "- Categoria principal - o assunto principal do texto\n"
+            "- Subcategoria - outros temas que representa o texto\n"
             f"Texto: {text}\n"
             "Responda no formato JSON: {\"tags\": [\"...\"], \"category\": \"...\", \"subcategory\": \"...\"}"
         )
@@ -127,20 +128,30 @@ def extract_metadata(text: str) -> DocumentMetadata:
         return DocumentMetadata(text=text, category="Outros", subcategory="Outros", tags=[])
 
 
-def get_blob_content(ext:str, blob_bytes:bytes):
-
+def get_blob_content(ext: str, blob_bytes: bytes) -> str:
     if ext in ['.txt', '.md']:
-        return blob_bytes.decode('utf-8', errors='ignore')
+        decoded = blob_bytes.decode('utf-8', errors='ignore')
+        return clean_utf8_text(decoded)
+
     elif ext == '.pdf':
         reader = PdfReader(io.BytesIO(blob_bytes))
-        return "\n".join(page.extract_text() or "" for page in reader.pages)
+        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        return clean_utf8_text(text)
+
     elif ext == '.docx':
         doc = DocxDocument(io.BytesIO(blob_bytes))
-        return "\n".join(paragraph.text for paragraph in doc.paragraphs)
+        text = "\n".join(p.text for p in doc.paragraphs)
+        return clean_utf8_text(text)
+
     else:
         logging.error(f"Tipo de arquivo {ext} não suportado.")
         raise ValueError(f"Unsupported file type: {ext}")
 
+def clean_utf8_text(raw_text: str) -> str:
+    # Normaliza e remove caracteres de controle invisíveis
+    text = unicodedata.normalize("NFKC", raw_text)
+    text = ''.join(c for c in text if unicodedata.category(c)[0] != 'C')
+    return text.strip()
 
 def token_count(input_string) -> int:
     import tiktoken

@@ -4,6 +4,7 @@ from typing import Dict, List, Any, Tuple
 import uuid
 import azure.functions as func
 from sqlalchemy import select
+from configs.openai_client import AzureOpenAIClient
 from models.DatabaseModels import ClassModel, MetricsModel, DailyDashboardModel
 from models.Roles import Role
 from models.ResponseModel import ResponseModel
@@ -12,6 +13,22 @@ from utils.db_session import SessionLocal
 
 # Blueprint
 dashboard_bp = func.Blueprint()
+
+def generate_daily_summary(class_code: str, d: date, prompts: List[str]) -> str:
+    """
+    Usa o AzureOpenAIClient para resumir, em linguagem ampla,
+    as principais dúvidas a partir da lista de prompts.
+    """
+    # Pegue apenas as primeiras N interações para não estourar token
+    sample_prompts = "\n".join(f"- {p}" for p in prompts[:50])
+    prompt = (
+        f"Você é um assistente educacional. Sintetize, em até 200 palavras, as principais "
+        f"dúvidas que a turma **{class_code}** teve em **{d.isoformat()}**, "
+        f"com base nestas interações:\n\n{sample_prompts}\n\n"
+        "Responda em linguagem clara e objetiva, sem citar nomes de alunos. Aponte apenas as dúvidas mais recorrentes e relevantes. Não traga explicações.\n"
+    )
+    summary, _ = AzureOpenAIClient.create_completion(prompt=prompt, max_tokens=300)
+    return summary.strip()
 
 def extract_insights(metrics: List[MetricsModel]) -> Dict[str, Any]:
     total_conversations = len(metrics)
@@ -53,7 +70,7 @@ def get_top_students(metrics: List[MetricsModel]) -> List[Dict[str, Any]]:
 
 
 @dashboard_bp.function_name(name="process_daily_dashboard")
-@dashboard_bp.timer_trigger(schedule="0 */3 * * *", run_on_startup=True, arg_name="timer")
+@dashboard_bp.timer_trigger(schedule="0 */3 * * *", run_on_startup=False, arg_name="timer")
 def process_daily_dashboard(timer: func.TimerRequest) -> None:
     logging.info("Iniciando consolidação diária de métricas...")
     try:
@@ -77,12 +94,19 @@ def process_daily_dashboard(timer: func.TimerRequest) -> None:
         for (cls, d), mets in grouped.items():
             insights = extract_insights(mets)
             top_students = get_top_students(mets)
+
+            prompts = [m.prompt for m in mets if m.prompt]
+            daily_summary = generate_daily_summary(cls, d, prompts)
+
+
             # Remover entradas anteriores para esta classe e dia
             db_session.query(DailyDashboardModel).filter(
                 DailyDashboardModel.class_code == cls,
                 DailyDashboardModel.date == d
             ).delete()
             # Criar nova entrada
+
+
             entry = DailyDashboardModel(
                 id=str(uuid.uuid4()),
                 class_code=cls,
@@ -94,6 +118,7 @@ def process_daily_dashboard(timer: func.TimerRequest) -> None:
                 top_categories=insights["top_categories"],
                 top_subcategories=insights["top_subcategories"],
                 top_students=top_students,
+                daily_summary=daily_summary,
                 updated_at=datetime.utcnow()
             )
             db_session.add(entry)
@@ -149,7 +174,8 @@ def get_dashboard(req: func.HttpRequest) -> func.HttpResponse:
                 "top_categories": r.top_categories,
                 "top_subcategories": r.top_subcategories,
                 "top_students": r.top_students,
-                "updated_at": r.updated_at.isoformat()
+                "updated_at": r.updated_at.isoformat(),
+                "daily_summary": r.daily_summary if r.daily_summary else "Nenhum resumo disponível"
             }
             dashboard.setdefault(r.class_code, []).append(item)
 

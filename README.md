@@ -107,11 +107,10 @@ As principais bibliotecas utilizadas no projeto estão listadas abaixo e são in
 
 ### Como fazer deploy deploy
 
-1. Execute o seguinte comando, substituindo `<APP_NAME>` pelo nome da sua aplicação no Azure:
+1. Execute o seguinte comando:
    ```bash
-   func azure functionapp publish <APP_NAME> --build local
+      func azure functionapp publish func-sagefy --python
    ```
-
 
 ## 📈 Logs e Monitoramento
 

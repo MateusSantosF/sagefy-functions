@@ -19,6 +19,7 @@ class AzureOpenAIClient:
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
+            print(response)
             return (response.choices[0].message.content, response)
         except Exception as e:
             logging.error(f"Erro ao criar completion: {str(e)}")

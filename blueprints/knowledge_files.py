@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import uuid
 import base64
 from datetime import datetime
@@ -32,6 +33,9 @@ def get_files(req: func.HttpRequest) -> func.HttpResponse:
         user = validate_user_access(req, allowed_roles=[Role.TEACHER, Role.ADMIN])
         if isinstance(user, ResponseModel):
             return user
+        
+        if user.get("role") == Role.ADMIN.value:
+            class_code = "admin"
 
         folder = get_folder(class_code, user)
         # Consulta FileMeta no Postgres
@@ -72,16 +76,23 @@ def upload_file_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         class_code = data.get('class_code')
         if not file_name or not content_b64:
             return ResponseModel({'error': 'fileName e fileContent são obrigatórios.'}, status_code=400)
+        
+        if user.get("role") == Role.ADMIN.value:
+            class_code = "admin"
 
         file_bytes = base64.b64decode(content_b64)
         folder = get_folder(class_code, user)
         blob_id = f"{str(uuid.uuid4())}{ext}"
 
+        def clean_metadata_value(value: str) -> str:
+            # Remove caracteres que não são letras, números, hífen ou underline
+            return re.sub(r"[^a-zA-Z0-9_.-]", "_", value)
+
         metadata = {
-            'file_id': blob_id,
-            'original_name': file_name,
-            'uploaded_by': user.get('email'),
-            'class_code': folder
+            'file_id': clean_metadata_value(blob_id),
+            'original_name': clean_metadata_value(file_name),
+            'uploaded_by': clean_metadata_value(user.get('email')),
+            'class_code': clean_metadata_value(folder)
         }
 
         blob_name = upload_file(folder, blob_id, file_bytes, metadata)

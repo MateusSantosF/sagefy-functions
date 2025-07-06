@@ -70,4 +70,4 @@ jobs:
           app-name: 'func-sagefy-prod'
           slot-name: 'Production'
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_4A7DE4BD9C5B4EB4BCE9E9047707D45D }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_9E73CE9A523C46099487864AB60927E5 }}

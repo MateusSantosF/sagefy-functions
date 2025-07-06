@@ -1,2 +1,6 @@
-
 env
+training_data
+venv
+test_results_baseline.xlsx
+test_Results_rag_hyde.xlsx
+test_results_rag.xlsx

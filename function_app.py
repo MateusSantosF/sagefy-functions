@@ -14,3 +14,9 @@ app.register_blueprint(files_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(turmas_bp)
 app.register_blueprint(dashboard_bp)
+
+
+@app.function_name(name="HttpTrigger")
+@app.route(route="test")
+def test(req: func.HttpRequest) -> func.HttpResponse:
+    return func.HttpResponse("Olá")
